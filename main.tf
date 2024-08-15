@@ -26,7 +26,7 @@ resource "aws_instance" "jenkins-ec2" {
 
 
 #Create security group 
-resource "aws_security_group" "myjenkins_sg" {
+resource "aws_security_group" "jenkins-sg" {
   name        = "jenkins_sg20"
   description = "Allow inbound ports 22, 8080"
 
