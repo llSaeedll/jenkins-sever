@@ -1,26 +1,14 @@
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-#Configure the AWS Provider
-provider "aws" {
-  region = "ap-southeast-1"
-}
-
 #Create EC2 Instance
 resource "aws_instance" "jenkins-ec2" {
-  ami                       = "ami-0a6b545f62129c495"
-  instance_type             = "t2.micro"
-  key_name                  = "Jenkins-server"
+  ami                       = var.ami_id
+  instance_type             = var.instance_type
+  key_name                  = var.key_name
+  associate_public_ip_address = true
   vpc_security_group_ids    = [aws_security_group.jenkins-sg.id]
   user_data                 = file("install_jenkins.sh")
 
   tags = {
-    Name = "Myweek20project"
+    Name = "jenkins-server"
   }
 }
 
@@ -65,10 +53,15 @@ resource "aws_security_group" "jenkins-sg" {
   }
 }
 
+resource "random_string" "bucket_suffix" {
+  length = 6
+  upper  = false
+  special = false
+}
 
 #Create S3 bucket for Jenksin Artifacts
 resource "aws_s3_bucket" "my-s3-bucket" {
-  bucket = "jenkins-s3-bucket-week20terraform"
+  bucket = "jenkins-s3-bucket-${random_string.bucket_suffix.result}"
 
   tags = {
     Name = "Jenkins-Server"
@@ -78,7 +71,7 @@ resource "aws_s3_bucket" "my-s3-bucket" {
 #make sure is prive and not open to public and create Access control List
 resource "aws_s3_bucket_acl" "s3_bucket_acl" {
   bucket = aws_s3_bucket.my-s3-bucket.id
-  acl    = "private"
+  acl    = var.acl
   depends_on = [aws_s3_bucket_ownership_controls.s3_bucket_acl_ownership]
 }
 
@@ -86,6 +79,12 @@ resource "aws_s3_bucket_acl" "s3_bucket_acl" {
 resource "aws_s3_bucket_ownership_controls" "s3_bucket_acl_ownership" {
   bucket = aws_s3_bucket.my-s3-bucket.id
   rule {
-    object_ownership = "ObjectWriter"
+    object_ownership = "BucketOwnerPreferred"
   }
+}
+
+
+output "jenkins_url" {
+  value = "http://${aws_instance.jenkins-ec2.public_ip}:8080"
+  description = "The URL to access Jenkins"
 }
